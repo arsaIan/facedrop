@@ -1,0 +1,92 @@
+package repository
+
+import (
+	"mofoto/models"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+type EventRepository struct {
+	db *gorm.DB
+}
+
+func NewEventRepository(db *gorm.DB) *EventRepository {
+	return &EventRepository{db: db}
+}
+
+func (r *EventRepository) Create(event *models.Event) error {
+	if err := r.db.Create(event).Error; err != nil {
+		return err
+	}
+	// Preload Creator after creation
+	return r.db.Preload("Creator").First(event, event.ID).Error
+}
+
+func (r *EventRepository) FindByID(id uint) (*models.Event, error) {
+	var event models.Event
+	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").First(&event, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (r *EventRepository) FindAll() ([]models.Event, error) {
+	var events []models.Event
+	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (r *EventRepository) Update(event *models.Event) error {
+	return r.db.Save(event).Error
+}
+
+func (r *EventRepository) Delete(id uint) error {
+	return r.db.Delete(&models.Event{}, id).Error
+}
+
+func (r *EventRepository) AddSubscriber(eventID, userID uint) error {
+	subscriber := models.EventSubscriber{
+		EventID:      eventID,
+		UserID:       userID,
+		SubscribedAt: time.Now(),
+	}
+	return r.db.Create(&subscriber).Error
+}
+
+func (r *EventRepository) RemoveSubscriber(eventID, userID uint) error {
+	return r.db.Where("event_id = ? AND user_id = ?", eventID, userID).Delete(&models.EventSubscriber{}).Error
+}
+
+func (r *EventRepository) AddPhoto(photo *models.Photo) error {
+	if err := r.db.Create(photo).Error; err != nil {	
+		return err
+	}	
+	// Preload Uploader after creation
+	return r.db.Preload("Uploader").Preload("Event").Preload("Event.Creator").First(photo, photo.ID).Error
+}
+
+func (r *EventRepository) GetEventPhotos(eventID uint) ([]models.Photo, error) {
+	var photos []models.Photo
+	err := r.db.Where("event_id = ?", eventID).Preload("Uploader").Find(&photos).Error
+	if err != nil {
+		return nil, err
+	}
+	return photos, nil
+}
+
+func (r *EventRepository) GetSubscriberPhotos(eventID, userID uint) ([]models.Photo, error) {
+	var photos []models.Photo
+	err := r.db.Joins("JOIN event_subscribers ON event_subscribers.event_id = photos.event_id").
+		Where("event_subscribers.user_id = ? AND photos.event_id = ?", userID, eventID).
+		Preload("Uploader").
+		Find(&photos).Error
+	if err != nil {
+		return nil, err
+	}
+	return photos, nil
+} 
