@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mofoto/config"
 	"mofoto/controller"
+	"mofoto/deepface"
 	"mofoto/logger"
 	"mofoto/middleware"
 	"mofoto/models"
@@ -69,13 +70,14 @@ func main() {
 		logger.Fatal("Failed to create storage client", logger.Error(err))
 	}
 	storageClient := service.NewStorageClient(s3Client)
+	deepfaceClient := deepface.NewDeepFaceClient(cfg.DeepFaceConfig.URL)
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	eventRepo := repository.NewEventRepository(db)
-
+	qrService := service.NewQRService(cfg.ServerConfig.BaseURL)
 	// Initialize services
 	userService := service.NewUserService(userRepo)
-	eventService := service.NewEventService(eventRepo)
+	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient)
 
 	// Initialize controllers
 	userController := controller.NewUserController(userService, cfg, storageClient)
@@ -127,5 +129,6 @@ func setupRoutes(r *gin.Engine, userController *controller.UserController,
 		eventRoutes.POST("/:id/photos", eventController.AddPhoto)
 		eventRoutes.GET("/:id/photos", eventController.GetEventPhotos)
 		eventRoutes.GET("/:id/my-photos", eventController.GetSubscriberPhotos)
+		eventRoutes.POST("/:id/ready", eventController.PushEventToReadyQueue)
 	}
 } 

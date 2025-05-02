@@ -90,3 +90,26 @@ func (r *EventRepository) GetSubscriberPhotos(eventID, userID uint) ([]models.Ph
 	}
 	return photos, nil
 } 
+
+func (r *EventRepository) UpdateEventStatus(eventID uint, status models.EventStatus) error {
+	return r.db.Model(&models.Event{}).Where("id = ?", eventID).Update("status", status).Error
+}
+
+func (r *EventRepository) GetEventStatus(eventID uint) (models.EventStatus, error) {
+	var status models.EventStatus
+	err := r.db.Model(&models.Event{}).Where("id = ?", eventID).Select("status").Scan(&status).Error
+	return status, err
+}
+
+func (r *EventRepository) GetSubscribers(eventID uint) ([]models.User, error) {
+	var subscribers []models.User
+	err := r.db.Model(&models.Event{}).Where("id = ?", eventID).Preload("Subscribers").Find(&subscribers).Error
+	return subscribers, err
+}
+
+func (r *EventRepository) GetUserFaces(subs []models.User) ([]models.UserFace, error) {
+	var userFaces []models.UserFace
+	err := r.db.Model(&models.UserFace{}).Where("user_id IN (?)", subs).Find(&userFaces).Error
+	return userFaces, err
+}
+

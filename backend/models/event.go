@@ -15,6 +15,13 @@ func (p *Photo) AfterFind(tx *gorm.DB) (err error) {
 	*p = stripped
 	return nil
 }
+type EventStatus string
+
+const (
+	EventStatusCreated EventStatus = "created"
+	EventStatusInactive EventStatus = "inactive"
+	EventStatusReady   EventStatus = "ready"
+)
 
 type Event struct {
 	gorm.Model
@@ -26,6 +33,8 @@ type Event struct {
 	Creator     User      `gorm:"foreignKey:CreatedBy" json:"creator"`
 	Subscribers []User    `gorm:"many2many:event_subscribers;" json:"subscribers,omitempty"`
 	Photos      []Photo   `gorm:"foreignKey:EventID" json:"photos,omitempty"`
+	QRCode      string    `json:"qr_code"`
+	Status      EventStatus `gorm:"default:created" json:"status"`
 }
 
 type Photo struct {

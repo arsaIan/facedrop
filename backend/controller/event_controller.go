@@ -249,3 +249,17 @@ func (c *EventController) GetSubscriberPhotos(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, photos)
 } 
+
+func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
+	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+
+	if err := c.eventService.PushEventToReadyQueue(uint(eventID)); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to push event to ready queue"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "Event pushed to ready queue"})
+}

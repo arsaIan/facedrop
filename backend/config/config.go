@@ -14,11 +14,13 @@ type Config struct {
 	DatabaseConfig DatabaseConfig
 	JWTConfig      JWTConfig
 	StorageConfig  StorageConfig
+	DeepFaceConfig DeepFaceConfig
 }
 
 type ServerConfig struct {
 	Port        int
 	Environment string
+	BaseURL        string
 }
 
 type DatabaseConfig struct {
@@ -45,6 +47,10 @@ type StorageConfig struct {
 	UserBucket 		string
 }
 
+type DeepFaceConfig struct {
+	URL string
+}
+
 func LoadConfig() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, err
@@ -58,6 +64,7 @@ func LoadConfig() (*Config, error) {
 		ServerConfig: ServerConfig{
 			Port:        port,
 			Environment: os.Getenv("ENVIRONMENT"),
+			BaseURL:     os.Getenv("BASE_URL"),
 		},
 		DatabaseConfig: DatabaseConfig{
 			Host:     os.Getenv("DB_HOST"),
@@ -79,6 +86,9 @@ func LoadConfig() (*Config, error) {
 			SecretAccessKey: os.Getenv("STORAGE_SECRET_ACCESS_KEY"),
 			EventBucket:     os.Getenv("EVENT_BUCKET"),
 			UserBucket:      os.Getenv("USER_BUCKET"),
+		},
+		DeepFaceConfig: DeepFaceConfig{
+			URL: os.Getenv("DEEP_FACE_URL"),
 		},
 	}, nil
 }
