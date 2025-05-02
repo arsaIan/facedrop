@@ -1,4 +1,11 @@
 # Wip 
+### Setup
+```
+git clone
+cd facedrop
+git submodule init
+git submodule update
+```
 ### Deepface setup using conda
 Requires python < 3.11
 ```
