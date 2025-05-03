@@ -1,0 +1,58 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Mofoto",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/backend",
+            "env": {
+                "DB_HOST": "10.13.13.7",    
+                "DB_PORT": "5432",
+                "DB_USER": "mofoto",
+                "DB_PASSWORD": "mofoto",
+                "DB_NAME": "dev",
+                "DB_SSL_MODE": "disable",
+                "DB_MIGRATE": "true",
+
+                "PORT": "8080",
+                "JWT_SECRET": "your-secret-key",
+                "JWT_EXPIRY": "24",
+                "ENVIRONMENT": "development",
+                "BASE_URL": "localhost:8080",
+
+                "REDIS_HOST": "localhost",
+                "REDIS_PORT": "6379",
+                "REDIS_PASSWORD": "",
+                "REDIS_DB": "0",
+
+                "STORAGE_ENDPOINT": "http://10.13.13.7:10000",
+                "STORAGE_REGION": "random",
+                "STORAGE_ACCESS_KEY_ID": "mofoto",
+                "STORAGE_SECRET_ACCESS_KEY": "mofoto@arsln.dev",
+                "EVENT_BUCKET": "mofoto",
+                "USER_BUCKET": "mofoto-face",
+
+            },
+            "args": [],
+            "showLog": true
+        },
+        {
+            "name": "Debug Tests",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}",
+            "env": {
+                "ENVIRONMENT": "test",
+                "DB_HOST": "localhost",
+                "DB_PORT": "5432",
+                "DB_USER": "postgres",
+                "DB_PASSWORD": "postgres",
+                "DB_NAME": "mofoto_test",
+                "DB_SSL_MODE": "disable"
+            }
+        }
+    ]
+} 

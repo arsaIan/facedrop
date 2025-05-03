@@ -1,12 +1,12 @@
 package controller
 
 import (
+	"facedrop/config"
+	"facedrop/logger"
+	"facedrop/models"
+	"facedrop/service"
 	"fmt"
 	"io"
-	"mofoto/config"
-	"mofoto/logger"
-	"mofoto/models"
-	"mofoto/service"
 	"net/http"
 	"strconv"
 	"time"
@@ -257,9 +257,19 @@ func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.eventService.PushEventToReadyQueue(uint(eventID)); err != nil {
+	zipData, err := c.eventService.PushEventToReadyQueue(uint(eventID))
+	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to push event to ready queue"})
-		return
+		return 
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Event pushed to ready queue"})
+
+	// Set headers for file download
+	ctx.Header("Content-Description", "File Transfer")
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=event_%d_photos.zip", eventID))
+	ctx.Header("Content-Type", "application/zip")
+	ctx.Header("Content-Length", strconv.Itoa(len(zipData.([]byte))))
+
+	// Send the file
+	ctx.Data(http.StatusOK, "application/zip", zipData.([]byte))
 }

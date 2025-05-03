@@ -1,16 +1,17 @@
 package main
 
 import (
+	"facedrop/config"
+	"facedrop/controller"
+	"facedrop/deepface"
+	"facedrop/events"
+	"facedrop/logger"
+	"facedrop/middleware"
+	"facedrop/models"
+	"facedrop/repository"
+	"facedrop/service"
+	"facedrop/storage"
 	"fmt"
-	"mofoto/config"
-	"mofoto/controller"
-	"mofoto/deepface"
-	"mofoto/logger"
-	"mofoto/middleware"
-	"mofoto/models"
-	"mofoto/repository"
-	"mofoto/service"
-	"mofoto/storage"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,7 +20,14 @@ import (
 )
 func Migrate(db *gorm.DB) {
 	// Auto-migrate the schema
-	if err := db.AutoMigrate(&models.User{}, &models.Event{}, &models.Photo{}, &models.UserFace{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{}, 
+		&models.Event{}, 
+		&models.Photo{}, 
+		&models.UserFace{}, 
+		&models.EventSubscriber{},
+		&models.EventMatch{},
+		); err != nil {
 		logger.Fatal("Failed to migrate database", logger.Error(err))
 	}
 	logger.Info("Database migration completed")
@@ -75,9 +83,12 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	eventRepo := repository.NewEventRepository(db)
 	qrService := service.NewQRService(cfg.ServerConfig.BaseURL)
+
+	//initialize processor
+	processor := events.NewEventProcessor(eventRepo, s3Client, cfg)
 	// Initialize services
 	userService := service.NewUserService(userRepo)
-	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient)
+	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient, processor)
 
 	// Initialize controllers
 	userController := controller.NewUserController(userService, cfg, storageClient)

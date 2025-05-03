@@ -2,8 +2,8 @@ package service
 
 import (
 	"errors"
-	"mofoto/models"
-	"mofoto/repository"
+	"facedrop/models"
+	"facedrop/repository"
 	"os"
 	"time"
 

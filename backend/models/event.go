@@ -54,3 +54,10 @@ type EventSubscriber struct {
 	UserID       uint      `gorm:"primaryKey" json:"user_id"`
 	SubscribedAt time.Time `gorm:"not null" json:"subscribed_at"`
 } 
+
+type EventMatch struct {
+	gorm.Model
+	EventID uint `gorm:"not null" json:"event_id"`
+	UserID  uint `gorm:"not null" json:"user_id"`
+	PhotoURL string `gorm:"not null" json:"photo_url"`
+}

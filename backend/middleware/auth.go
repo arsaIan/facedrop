@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"mofoto/config"
+	"facedrop/config"
 	"net/http"
 	"strings"
 

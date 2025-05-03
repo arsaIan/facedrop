@@ -1,13 +1,13 @@
 package controller
 
 import (
+	"facedrop/config"
+	"facedrop/logger"
+	"facedrop/models"
+	"facedrop/service"
+	"facedrop/utils"
 	"fmt"
 	"io"
-	"mofoto/config"
-	"mofoto/logger"
-	"mofoto/models"
-	"mofoto/service"
-	"mofoto/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -142,8 +142,8 @@ func (c *UserController) UploadFace(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
 		return
 	}	
-
-	faceURL, err := c.storageClient.UploadFile(ctx, fmt.Sprintf("users/%d/face", userID), fileContent, c.cfg.StorageConfig.UserBucket)
+	fileKey := fmt.Sprintf("users/%d/face/%s", userID, file.Filename)
+	faceURL, err := c.storageClient.UploadFile(ctx, fileKey, fileContent, c.cfg.StorageConfig.UserBucket)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upload face"})
 		return

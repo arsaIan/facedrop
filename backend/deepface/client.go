@@ -3,10 +3,10 @@ package deepface
 import (
 	"bytes"
 	"encoding/json"
+	"facedrop/logger"
 	"fmt"
 	"io"
 	"mime/multipart"
-	"mofoto/logger"
 	"net/http"
 	"os"
 )
@@ -30,6 +30,7 @@ type FaceVerificationRequest struct {
 	Img2           string `json:"img2"`
 	DetectorBackend string `json:"detector_backend,omitempty"`
 	DistanceMetric  string `json:"distance_metric,omitempty"`
+	EnforceDetection bool	`json:"enforce_detection"`
 }
 
 func (c *DeepFaceClient) GetFaceEmbedding(imageUrl string) ([]float32, error) {
@@ -77,8 +78,9 @@ func (c *DeepFaceClient) CompareFaces(imageUrl1 string, imageUrl2 string) (bool,
 		ModelName:       "Facenet",
 		Img1:           imageUrl1,
 		Img2:           imageUrl2,
-		DetectorBackend: "mtcnn",
+		DetectorBackend: "opencv",
 		DistanceMetric:  "euclidean",
+		EnforceDetection: false,
 	}
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {

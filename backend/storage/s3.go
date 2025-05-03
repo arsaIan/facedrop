@@ -1,10 +1,15 @@
 package storage
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	"facedrop/config"
+	"facedrop/logger"
 	"fmt"
-	"mofoto/config"
+	"io"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -93,4 +98,66 @@ func (s *S3Client) DeleteFile(ctx context.Context, fileKey string, bucket string
 
 func (s *S3Client) GetFileURL(fileKey string, bucket string) string {
 	return fmt.Sprintf("%s/%s/%s", *s.client.Options().BaseEndpoint, bucket, fileKey)
+}
+
+func (s *S3Client) GetZippedFiles(ctx context.Context, fileURLs []string, bucket string) ([]byte, error) {
+	// Create a buffer to write our zip file to
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+
+	// Download each file and add it to the zip
+	for _, fileURL := range fileURLs {
+		// Extract file key from URL
+		// URL format: .../mofoto/{key}?...
+		parts := strings.Split(fileURL, "/mofoto/")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid file URL format: %s", fileURL)
+		}
+		
+		// Get everything before the ? character
+		keyParts := strings.Split(parts[1], "?")
+		if len(keyParts) == 0 {
+			return nil, fmt.Errorf("invalid file URL format: %s", fileURL)
+		}
+		
+		fileKey := keyParts[0]
+		logger.Info(fmt.Sprintf("getting file %s from bucket %s", fileKey, bucket))
+
+		// Get the file from S3
+		result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(fileKey),
+		})
+		if err != nil {
+			logger.Error(fmt.Errorf("failed to get file %s: %w", fileURL, err))
+			return nil, fmt.Errorf("failed to get file %s: %w", fileURL, err)
+		}
+		defer result.Body.Close()
+
+		// Create a new file in the zip archive with just the filename
+		filename := filepath.Base(fileKey)
+		zipFile, err := zipWriter.Create(filename)
+		if err != nil {
+			logger.Error(fmt.Errorf("failed to create zip entry for %s: %w", fileURL, err))
+			logger.Error(err)
+			return nil, fmt.Errorf("failed to create zip entry for %s: %w", fileURL, err)
+		}
+
+		// Copy the file contents to the zip
+		_, err = io.Copy(zipFile, result.Body)
+		if err != nil {
+			logger.Error(fmt.Errorf("failed to copy file %s to zip: %w", fileURL, err))
+			logger.Error(err)
+			return nil, fmt.Errorf("failed to copy file %s to zip: %w", fileURL, err)
+		}
+	}
+
+	// Close the zip writer
+	err := zipWriter.Close()
+	if err != nil {
+		logger.Error(fmt.Errorf("failed to close zip writer: %w", err))
+		return nil, fmt.Errorf("failed to close zip writer: %w", err)
+	}
+
+	return buf.Bytes(), nil
 } 

@@ -17,8 +17,8 @@ func InitLogger(env string) {
 	if env == "production" {
 		config = zap.NewProductionConfig()
 		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-		config.OutputPaths = []string{"stdout", "/var/log/mofoto/app.log"}
-		config.ErrorOutputPaths = []string{"stderr", "/var/log/mofoto/error.log"}
+		config.OutputPaths = []string{"stdout", "/var/log/facedrop/app.log"}
+		config.ErrorOutputPaths = []string{"stderr", "/var/log/facedrop/error.log"}
 	} else {
 		config = zap.NewDevelopmentConfig()
 		config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -29,7 +29,7 @@ func InitLogger(env string) {
 
 	// Add custom fields to all logs
 	config.InitialFields = map[string]interface{}{
-		"service": "mofoto",
+		"service": "facedrop",
 		"env":     env,
 	}
 

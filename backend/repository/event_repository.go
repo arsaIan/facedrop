@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"mofoto/models"
+	"facedrop/models"
 	"time"
 
 	"gorm.io/gorm"
@@ -102,14 +102,32 @@ func (r *EventRepository) GetEventStatus(eventID uint) (models.EventStatus, erro
 }
 
 func (r *EventRepository) GetSubscribers(eventID uint) ([]models.User, error) {
-	var subscribers []models.User
-	err := r.db.Model(&models.Event{}).Where("id = ?", eventID).Preload("Subscribers").Find(&subscribers).Error
-	return subscribers, err
+	var event models.Event
+	err := r.db.Preload("Subscribers").First(&event, eventID).Error
+	if err != nil {
+		return nil, err
+	}
+	return event.Subscribers, nil
 }
 
 func (r *EventRepository) GetUserFaces(subs []models.User) ([]models.UserFace, error) {
+	var userIDs []uint
+	for _, user := range subs {
+		userIDs = append(userIDs, user.ID)
+	}
+
 	var userFaces []models.UserFace
-	err := r.db.Model(&models.UserFace{}).Where("user_id IN (?)", subs).Find(&userFaces).Error
+	err := r.db.Where("user_id IN ?", userIDs).Find(&userFaces).Error
 	return userFaces, err
 }
 
+
+func (r *EventRepository) AddEventMatches(eventID uint, matches []models.EventMatch) error {
+	return r.db.Model(&models.EventMatch{}).Create(matches).Error
+}
+
+func (r *EventRepository) GetEventMatches(eventID uint) ([]models.EventMatch, error) {
+	var eventMatches []models.EventMatch
+	err := r.db.Where("event_id = ?", eventID).Find(&eventMatches).Error
+	return eventMatches, err
+}
