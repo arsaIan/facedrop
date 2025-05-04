@@ -33,6 +33,13 @@
                 "STORAGE_SECRET_ACCESS_KEY": "mofoto@arsln.dev",
                 "EVENT_BUCKET": "mofoto",
                 "USER_BUCKET": "mofoto-face",
+                "ZIP_BUCKET": "facedrop-zip",
+
+                "EMAIL_SMTP_HOST": "smtp.gmail.com",
+                "EMAIL_SMTP_PORT": "465",
+                "EMAIL_USERNAME": "facedropbot@gmail.com",
+                "EMAIL_FROM": "facedropbot@gmail.com",
+                "EMAIL_PASSWORD": "frbx oqbd zxqt thzg",
 
             },
             "args": [],

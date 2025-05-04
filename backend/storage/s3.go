@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"facedrop/config"
-	"facedrop/logger"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -121,7 +120,6 @@ func (s *S3Client) GetZippedFiles(ctx context.Context, fileURLs []string, bucket
 		}
 		
 		fileKey := keyParts[0]
-		logger.Info(fmt.Sprintf("getting file %s from bucket %s", fileKey, bucket))
 
 		// Get the file from S3
 		result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
@@ -129,7 +127,6 @@ func (s *S3Client) GetZippedFiles(ctx context.Context, fileURLs []string, bucket
 			Key:    aws.String(fileKey),
 		})
 		if err != nil {
-			logger.Error(fmt.Errorf("failed to get file %s: %w", fileURL, err))
 			return nil, fmt.Errorf("failed to get file %s: %w", fileURL, err)
 		}
 		defer result.Body.Close()
@@ -138,16 +135,12 @@ func (s *S3Client) GetZippedFiles(ctx context.Context, fileURLs []string, bucket
 		filename := filepath.Base(fileKey)
 		zipFile, err := zipWriter.Create(filename)
 		if err != nil {
-			logger.Error(fmt.Errorf("failed to create zip entry for %s: %w", fileURL, err))
-			logger.Error(err)
 			return nil, fmt.Errorf("failed to create zip entry for %s: %w", fileURL, err)
 		}
 
 		// Copy the file contents to the zip
 		_, err = io.Copy(zipFile, result.Body)
 		if err != nil {
-			logger.Error(fmt.Errorf("failed to copy file %s to zip: %w", fileURL, err))
-			logger.Error(err)
 			return nil, fmt.Errorf("failed to copy file %s to zip: %w", fileURL, err)
 		}
 	}
@@ -155,9 +148,38 @@ func (s *S3Client) GetZippedFiles(ctx context.Context, fileURLs []string, bucket
 	// Close the zip writer
 	err := zipWriter.Close()
 	if err != nil {
-		logger.Error(fmt.Errorf("failed to close zip writer: %w", err))
 		return nil, fmt.Errorf("failed to close zip writer: %w", err)
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (s *S3Client) UploadZipFile(ctx context.Context, zipData []byte, eventID string, bucket string) (string, error) {
+	// Generate a unique file key with timestamp and event ID
+	timestamp := time.Now().Unix()
+	zipKey := fmt.Sprintf("events/%s/%d_photos.zip", eventID, timestamp)
+
+	// Upload the zip file
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(zipKey),
+		Body:   bytes.NewReader(zipData),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to upload zip file: %w", err)
+	}
+
+	// Generate presigned URL for the uploaded zip file
+	presignClient := s3.NewPresignClient(s.client)
+	presignedURL, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(zipKey),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = 7 * 24 * time.Hour // URL expires in 7 days
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	return presignedURL.URL, nil
 } 

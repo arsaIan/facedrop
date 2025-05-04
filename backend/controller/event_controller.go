@@ -257,19 +257,12 @@ func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
 		return
 	}
 
-	zipData, err := c.eventService.PushEventToReadyQueue(uint(eventID))
+	_, err = c.eventService.PushEventToReadyQueue(uint(eventID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to push event to ready queue"})
 		return 
 	}
-
-	// Set headers for file download
-	ctx.Header("Content-Description", "File Transfer")
-	ctx.Header("Content-Transfer-Encoding", "binary")
-	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=event_%d_photos.zip", eventID))
-	ctx.Header("Content-Type", "application/zip")
-	ctx.Header("Content-Length", strconv.Itoa(len(zipData.([]byte))))
-
+	//utils.AddZipDownloadHeader(ctx, fmt.Sprintf("attachment; filename=event_%d_photos.zip", eventID), zipData.([]byte))
 	// Send the file
-	ctx.Data(http.StatusOK, "application/zip", zipData.([]byte))
+	ctx.JSON(http.StatusOK, gin.H{"message": "files sent to subs"})
 }

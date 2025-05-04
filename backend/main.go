@@ -9,6 +9,7 @@ import (
 	"facedrop/middleware"
 	"facedrop/models"
 	"facedrop/repository"
+	"facedrop/sender"
 	"facedrop/service"
 	"facedrop/storage"
 	"fmt"
@@ -84,8 +85,10 @@ func main() {
 	eventRepo := repository.NewEventRepository(db)
 	qrService := service.NewQRService(cfg.ServerConfig.BaseURL)
 
+	//initialize sender
+	sender := sender.NewEmailSender(cfg)
 	//initialize processor
-	processor := events.NewEventProcessor(eventRepo, s3Client, cfg)
+	processor := events.NewEventProcessor(eventRepo, s3Client, cfg, sender)
 	// Initialize services
 	userService := service.NewUserService(userRepo)
 	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient, processor)

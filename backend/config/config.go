@@ -15,6 +15,7 @@ type Config struct {
 	JWTConfig      JWTConfig
 	StorageConfig  StorageConfig
 	DeepFaceConfig DeepFaceConfig
+	EmailConfig    EmailConfig 
 }
 
 type ServerConfig struct {
@@ -45,10 +46,19 @@ type StorageConfig struct {
 	SecretAccessKey string
 	EventBucket		string
 	UserBucket 		string
+	ZipBucket		string
 }
 
 type DeepFaceConfig struct {
 	URL string
+}
+
+type EmailConfig struct {
+	SMTPHost     string `yaml:"smtp_host"`
+	SMTPPort     int    `yaml:"smtp_port"`
+	Username     string `yaml:"username"`
+	Password     string `yaml:"password"`
+	From         string `yaml:"from"`
 }
 
 func LoadConfig() (*Config, error) {
@@ -86,9 +96,17 @@ func LoadConfig() (*Config, error) {
 			SecretAccessKey: os.Getenv("STORAGE_SECRET_ACCESS_KEY"),
 			EventBucket:     os.Getenv("EVENT_BUCKET"),
 			UserBucket:      os.Getenv("USER_BUCKET"),
+			ZipBucket:       os.Getenv("ZIP_BUCKET"),
 		},
 		DeepFaceConfig: DeepFaceConfig{
 			URL: os.Getenv("DEEP_FACE_URL"),
+		},
+		EmailConfig: EmailConfig{
+			SMTPHost:     os.Getenv("EMAIL_SMTP_HOST"),
+			SMTPPort:     getEnvAsInt("EMAIL_SMTP_PORT", 587),
+			Username:     os.Getenv("EMAIL_USERNAME"),
+			Password:     os.Getenv("EMAIL_PASSWORD"),
+			From:         os.Getenv("EMAIL_FROM"),
 		},
 	}, nil
 }
@@ -105,7 +123,6 @@ func (c *Config) GetDSN() string {
 	)
 }
 
-
 // Helper functions
 func getEnv(key, defaultValue string) string {
 	if value, exists := os.LookupEnv(key); exists {
@@ -114,10 +131,14 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-func getEnvAsInt(key string, defaultValue int) int {
-	valueStr := getEnv(key, "")
-	if value, err := strconv.Atoi(valueStr); err == nil {
-		return value
+func getEnvAsInt(name string, defaultVal int) int {
+	valueStr := os.Getenv(name)
+	if valueStr == "" {
+		return defaultVal
 	}
-	return defaultValue
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultVal
+	}
+	return value
 } 
