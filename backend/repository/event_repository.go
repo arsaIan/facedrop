@@ -32,9 +32,9 @@ func (r *EventRepository) FindByID(id uint) (*models.Event, error) {
 	return &event, nil
 }
 
-func (r *EventRepository) FindAll() ([]models.Event, error) {
+func (r *EventRepository) FindAll(userID uint) ([]models.Event, error) {
 	var events []models.Event
-	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").Find(&events).Error
+	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").Where("created_by = ?", userID).Find(&events).Error
 	if err != nil {
 		return nil, err
 	}

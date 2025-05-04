@@ -59,7 +59,8 @@ func (c *EventController) GetEvent(ctx *gin.Context) {
 }
 
 func (c *EventController) GetAllEvents(ctx *gin.Context) {
-	events, err := c.eventService.GetAllEvents()
+	userID := ctx.GetUint("user_id")
+	events, err := c.eventService.GetAllEvents(userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
@@ -67,6 +68,8 @@ func (c *EventController) GetAllEvents(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, events)
 }
+
+
 
 func (c *EventController) UpdateEvent(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -212,20 +215,71 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, photo)
 }
 
+
+
 func (c *EventController) GetEventPhotos(ctx *gin.Context) {
+	// Get pagination parameters from query string
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("limit", "1"))
+
+	// Validate pagination parameters
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// Calculate offset
+	offset := (page - 1) * pageSize
+	// Get event ID from URL parameter
 	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
 
+	// Get total count of photos
 	photos, err := c.eventService.GetEventPhotos(uint(eventID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch photos"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, photos)
+	totalPhotos := len(photos)
+	totalPages := (totalPhotos + pageSize - 1) / pageSize
+
+	// Apply pagination
+	start := offset
+	end := offset + pageSize
+	if start >= totalPhotos {
+		ctx.JSON(http.StatusOK, gin.H{
+			"photos":      []models.Photo{},
+			"pagination": gin.H{
+				"current_page": page,
+				"total_pages": totalPages,
+				"page_size":   pageSize,
+				"total_items": totalPhotos,
+			},
+		})
+		return
+	}
+	if end > totalPhotos {
+		end = totalPhotos
+	}
+
+	paginatedPhotos := photos[start:end]
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"photos":      paginatedPhotos,
+		"pagination": gin.H{
+			"current_page": page,
+			"total_pages": totalPages,
+			"page_size":   pageSize,
+			"total_items": totalPhotos,
+		},
+	})
+	return
 }
 
 func (c *EventController) GetSubscriberPhotos(ctx *gin.Context) {

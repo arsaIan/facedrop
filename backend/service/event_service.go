@@ -21,20 +21,21 @@ func NewEventService(eventRepo *repository.EventRepository, qrService *QRService
 }
 
 func (s *EventService) CreateEvent(event *models.Event) error {
+	errRepo := s.eventRepo.Create(event)
 	qrCode, err := s.qrService.GenerateEventSubscriptionQR(event.ID)
 	if err != nil {
 		return err
 	}
 	event.QRCode = qrCode
-	return s.eventRepo.Create(event)
+	return errRepo
 }
 
 func (s *EventService) GetEventByID(id uint) (*models.Event, error) {
 	return s.eventRepo.FindByID(id)
 }
 
-func (s *EventService) GetAllEvents() ([]models.Event, error) {
-	return s.eventRepo.FindAll()
+func (s *EventService) GetAllEvents(userID uint) ([]models.Event, error) {
+	return s.eventRepo.FindAll(userID)
 }
 
 func (s *EventService) UpdateEvent(event *models.Event) error {
