@@ -131,3 +131,12 @@ func (r *EventRepository) GetEventMatches(eventID uint) ([]models.EventMatch, er
 	err := r.db.Where("event_id = ?", eventID).Find(&eventMatches).Error
 	return eventMatches, err
 }
+
+func (r *EventRepository) GetEventSubscribers(eventID uint) ([]models.User, error) {
+	var event models.Event
+	err := r.db.Preload("Subscribers").First(&event, eventID).Error
+	if err != nil {
+		return nil, err
+	}
+	return event.Subscribers, nil
+}

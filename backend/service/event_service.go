@@ -84,3 +84,6 @@ func (s *EventService) GetEventStatus(eventID uint) (models.EventStatus, error) 
 	return s.eventRepo.GetEventStatus(eventID)
 }
 
+func (s *EventService) GetEventSubscribers(eventID uint) ([]models.User, error) {
+	return s.eventRepo.GetEventSubscribers(eventID)
+}

@@ -144,5 +144,6 @@ func setupRoutes(r *gin.Engine, userController *controller.UserController,
 		eventRoutes.GET("/:id/photos", eventController.GetEventPhotos)
 		eventRoutes.GET("/:id/my-photos", eventController.GetSubscriberPhotos)
 		eventRoutes.POST("/:id/ready", eventController.PushEventToReadyQueue)
+		eventRoutes.GET("/:id/subscribers", eventController.GetEventSubscribers)
 	}
 } 

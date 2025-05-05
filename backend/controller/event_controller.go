@@ -320,3 +320,18 @@ func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
 	// Send the file
 	ctx.JSON(http.StatusOK, gin.H{"message": "files sent to subs"})
 }
+
+func (c *EventController) GetEventSubscribers(ctx *gin.Context) {
+	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
+		return
+	}
+
+	subscribers, err := c.eventService.GetEventSubscribers(uint(eventID))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subscribers"})
+		return
+	}
+	ctx.JSON(http.StatusOK, subscribers)
+}
