@@ -21,12 +21,12 @@ func NewEventService(eventRepo *repository.EventRepository, qrService *QRService
 }
 
 func (s *EventService) CreateEvent(event *models.Event) error {
-	errRepo := s.eventRepo.Create(event)
 	qrCode, err := s.qrService.GenerateEventSubscriptionQR(event.ID)
 	if err != nil {
 		return err
 	}
 	event.QRCode = qrCode
+	errRepo := s.eventRepo.Create(event)
 	return errRepo
 }
 
