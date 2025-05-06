@@ -8,6 +8,7 @@ import (
 	"facedrop/utils"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -150,8 +151,7 @@ func (c *EventController) UnsubscribeFromEvent(ctx *gin.Context) {
 
 	ctx.Status(http.StatusOK)
 }
-
-func (c *EventController) AddPhoto(ctx *gin.Context) {
+func (c *EventController) AddMultiplePhotos(ctx *gin.Context) {
 	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -168,26 +168,45 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 		return
 	}
 	
-
-	file, err := ctx.FormFile("photo")
+	form, err := ctx.MultipartForm()
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Photo file is required"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
 		return
 	}
 
+	files := form.File["photo"]
+	if len(files) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No photos provided"})
+		return
+	}
+
+	uploadedPhotos := []string{}
+	for _, file := range files {
+		err, photo := c.AddPhoto(ctx, file, uint(eventID), userID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add photo"})
+			return
+		}
+		uploadedPhotos = append(uploadedPhotos, photo.URL)
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Photos uploaded successfully",
+		"urls":    uploadedPhotos,
+	})
+}	
+func (c *EventController) AddPhoto(ctx *gin.Context, file *multipart.FileHeader, eventID uint, userID uint) (error, models.Photo) {
 	// Open the file
 	src, err := file.Open()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
-		return
+		return err, models.Photo{}
 	}
 	defer src.Close()
 
 	// Read the file content
 	fileContent, err := io.ReadAll(src)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-		return
+		return err, models.Photo{}		
 	}
 
 	// Upload file to S3
@@ -196,8 +215,7 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 	fileKey := fmt.Sprintf("events/%d/%s", eventID, file.Filename)
 	photoURL, err := c.storageClient.UploadFile(ctx, fileKey, fileContent, c.cfg.StorageConfig.EventBucket)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload photo"})
-		return
+		return err, models.Photo{}
 	}
 	logger.Info("Photo uploaded to S3", logger.String("photoURL", photoURL))
 
@@ -211,11 +229,10 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 	}
 
 	if err := c.eventService.AddPhotoToEvent(photo); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add photo"})
-		return
+		return err, models.Photo{}
 	}
 
-	ctx.JSON(http.StatusCreated, photo)
+	return nil, *photo
 }
 
 

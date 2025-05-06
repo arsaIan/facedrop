@@ -140,7 +140,7 @@ func setupRoutes(r *gin.Engine, userController *controller.UserController,
 		eventRoutes.DELETE("/:id", eventController.DeleteEvent)
 		eventRoutes.POST("/:id/subscribe", eventController.SubscribeToEvent)
 		eventRoutes.DELETE("/:id/subscribe", eventController.UnsubscribeFromEvent)
-		eventRoutes.POST("/:id/photos", eventController.AddPhoto)
+		eventRoutes.POST("/:id/photos/multiple", eventController.AddMultiplePhotos)
 		eventRoutes.GET("/:id/photos", eventController.GetEventPhotos)
 		eventRoutes.GET("/:id/my-photos", eventController.GetSubscriberPhotos)
 		eventRoutes.POST("/:id/ready", eventController.PushEventToReadyQueue)
