@@ -5,6 +5,7 @@ import (
 	"facedrop/logger"
 	"facedrop/models"
 	"facedrop/service"
+	"facedrop/utils"
 	"fmt"
 	"io"
 	"net/http"
@@ -190,6 +191,8 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 	}
 
 	// Upload file to S3
+	// Remove spaces from filename
+	file.Filename = utils.CleanFilename(file.Filename)
 	fileKey := fmt.Sprintf("events/%d/%s", eventID, file.Filename)
 	photoURL, err := c.storageClient.UploadFile(ctx, fileKey, fileContent, c.cfg.StorageConfig.EventBucket)
 	if err != nil {
@@ -318,7 +321,7 @@ func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
 	}
 	//utils.AddZipDownloadHeader(ctx, fmt.Sprintf("attachment; filename=event_%d_photos.zip", eventID), zipData.([]byte))
 	// Send the file
-	ctx.JSON(http.StatusOK, gin.H{"message": "files sent to subs"})
+	ctx.JSON(http.StatusOK, gin.H{"message": "Files sent to subscribers"})
 }
 
 func (c *EventController) GetEventSubscribers(ctx *gin.Context) {

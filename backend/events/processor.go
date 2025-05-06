@@ -4,6 +4,7 @@ import (
 	"context"
 	"facedrop/config"
 	"facedrop/logger"
+	"facedrop/models"
 	"facedrop/repository"
 	"facedrop/sender"
 	"facedrop/storage"
@@ -21,6 +22,11 @@ func NewEventProcessor(eventRepo *repository.EventRepository, storageClient *sto
 }
 func (ep *EventProcessor) Process(eventID uint) (interface{}, error) {
 	logger.Info(fmt.Sprintf("processing event with dummy processor %d", eventID))
+	event, err := ep.eventRepo.FindByID(eventID)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
 	subs, err := ep.eventRepo.GetSubscribers(eventID)
 	if err != nil {
 		logger.Error(err)
@@ -58,12 +64,20 @@ func (ep *EventProcessor) Process(eventID uint) (interface{}, error) {
 		return nil, err
 	}
 	for _, sub := range subs {
-		err := ep.sender.SendZipFile([]string{sub.Email}, fmt.Sprintf("Event Photos #%d", eventID), ep.cfg.StorageConfig.ZipBucket, downloadLink)
+		emailData := sender.EmailData{
+			Subject: fmt.Sprintf("Event Photos #%s", event.Title),
+			Body: fmt.Sprintf("Hey %s, your photos from %s are ready to download. Click the button below to download them:", sub.FirstName, event.Title),
+			DownloadLink: downloadLink,
+			Username: sub.FirstName,
+			EventName: event.Title,
+		}
+		err := ep.sender.SendZipFile([]string{sub.Email}, emailData)
 		if err != nil {
 			logger.Error(err)
 			return nil, err
 		}
 		logger.Info(fmt.Sprintf("sent event %d to %s", eventID, sub.Email))
+		ep.eventRepo.UpdateSubscriberStatus(sub.ID, models.Delivered)
 	}
 	return zipFile, nil
 }

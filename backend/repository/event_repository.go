@@ -132,11 +132,16 @@ func (r *EventRepository) GetEventMatches(eventID uint) ([]models.EventMatch, er
 	return eventMatches, err
 }
 
-func (r *EventRepository) GetEventSubscribers(eventID uint) ([]models.User, error) {
-	var event models.Event
-	err := r.db.Preload("Subscribers").First(&event, eventID).Error
-	if err != nil {
-		return nil, err
-	}
-	return event.Subscribers, nil
+func (r *EventRepository) UpdateSubscriberStatus(subscriberID uint, status models.EventSubscriberStatus) error {
+	return r.db.Model(&models.EventSubscriber{}).Where("user_id = ?", subscriberID).Update("status", status).Error
 }
+
+func (r *EventRepository) GetEventSubscribers(eventID uint) ([]models.EventSubscriber, error) {
+    var subscribers []models.EventSubscriber
+
+    // Using Preload to load the User associated with each EventSubscriber
+    err := r.db.Where("event_id = ?", eventID).Preload("User").Find(&subscribers).Error
+
+    return subscribers, err
+}
+

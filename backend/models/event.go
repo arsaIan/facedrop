@@ -23,6 +23,15 @@ const (
 	EventStatusReady   EventStatus = "ready"
 )
 
+type EventSubscriberStatus string
+
+const (
+	Subscribed EventSubscriberStatus = "subscribed"
+	Pending EventSubscriberStatus = "pending"
+	Delivered EventSubscriberStatus = "delivered"
+	Failed EventSubscriberStatus = "failed"
+)
+
 type Event struct {
 	gorm.Model
 	Title       string    `gorm:"not null" json:"title"`
@@ -52,6 +61,8 @@ type Photo struct {
 type EventSubscriber struct {
 	EventID      uint      `gorm:"primaryKey" json:"event_id"`
 	UserID       uint      `gorm:"primaryKey" json:"user_id"`
+	Status       string    `gorm:"default:subscribed" json:"status"`
+	User         User      `gorm:"foreignKey:UserID" json:"user"`
 	SubscribedAt time.Time `gorm:"not null" json:"subscribed_at"`
 } 
 

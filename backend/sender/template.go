@@ -44,28 +44,27 @@ const emailTemplate = `
             margin: 20px 0;
         }
         .logo {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 10px;
+            width: 60px;
+            height: 60px;
+            margin: 10px auto;
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <div class="logo">FaceDrop</div>
-        <h1>{{.Subject}}</h1>
+        <h1>{{.EventName}}</h1>
     </div>
     <div class="content">
-        <p>{{.Body}}</p>
-        <p>Your photos are ready for download. Click the button below to download them:</p>
+        <p>Hey {{.Username}}, your photos from {{.EventName}} are ready to download. Click the button below to download them:</p>
         <div style="text-align: center;">
             <a href="{{.DownloadLink}}" class="button">Download Photos</a>
         </div>
-        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-        <p style="word-break: break-all; background-color: #f3f4f6; padding: 10px; border-radius: 4px;">{{.DownloadLink}}</p>
+        <p>If the button doesn't work, you can right-click on the button above and select "Copy Link Address" to paste in your browser.</p>
         <p>This link will expire in 7 days.</p>
     </div>
     <div class="footer">
+        <img src="https://files.arsln.dev/fd-logo.png" alt="FaceDrop Logo" class="logo">
         <p>© 2024 FaceDrop. All rights reserved.</p>
         <p>This is an automated message, please do not reply to this email.</p>
     </div>

@@ -19,13 +19,15 @@ type EmailData struct {
 	Subject      string
 	Body         string
 	DownloadLink string
+	Username     string
+	EventName    string
 }
 
 func NewEmailSender(cfg *config.Config) *EmailSender {
 	return &EmailSender{cfg: cfg}
 }
 
-func (e *EmailSender) SendZipFile(to []string, subject string, body string, downloadLink string) error {
+func (e *EmailSender) SendZipFile(to []string, data EmailData) error {
 	// Check if the necessary config parameters are provided
 	if e.cfg.EmailConfig.Username == "" || e.cfg.EmailConfig.Password == "" || e.cfg.EmailConfig.SMTPHost == "" || e.cfg.EmailConfig.SMTPPort == 0 {
 		return fmt.Errorf("username or password or smtp host or smtp port is empty")
@@ -39,9 +41,11 @@ func (e *EmailSender) SendZipFile(to []string, subject string, body string, down
 
 	var htmlContent bytes.Buffer
 	err = tmpl.Execute(&htmlContent, EmailData{
-		Subject:      subject,
-		Body:         body,
-		DownloadLink: downloadLink,
+		Subject:      data.Subject,
+		Body:         data.Body,
+		DownloadLink: data.DownloadLink,
+		Username:     data.Username,
+		EventName:    data.EventName,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to execute email template: %w", err)
@@ -53,7 +57,7 @@ func (e *EmailSender) SendZipFile(to []string, subject string, body string, down
 	// Write headers
 	message.WriteString(fmt.Sprintf("From: %s\r\n", e.cfg.EmailConfig.From))
 	message.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(to, ",")))
-	message.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	message.WriteString(fmt.Sprintf("Subject: %s\r\n", data.Subject))
 	message.WriteString("MIME-Version: 1.0\r\n")
 	message.WriteString("Content-Type: text/html; charset=utf-8\r\n")
 	message.WriteString("\r\n")
