@@ -35,8 +35,12 @@ func (c *UserController) Register(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
-	ctx.JSON(http.StatusCreated, user)
+	token, err := c.userService.GenerateToken(user.ID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}	
+	ctx.JSON(http.StatusOK, gin.H{"token": token})
 }
 func (c*UserController) Login(ctx *gin.Context) {
 	var loginRequest struct {

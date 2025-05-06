@@ -122,13 +122,17 @@ func (c *EventController) SubscribeToEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
-
+	existingSub := c.eventService.GetEventSubscriber(uint(eventID), userID)
+	if existingSub != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User already subscribed to event"})
+		return
+	}
 	if err := c.eventService.SubscribeToEvent(uint(eventID), userID); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to subscribe to event"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to subscribe to event, " + err.Error()})
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.JSON(http.StatusOK, gin.H{"message": "Subscribed to event"})
 }
 
 func (c *EventController) UnsubscribeFromEvent(ctx *gin.Context) {

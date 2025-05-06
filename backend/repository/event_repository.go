@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"facedrop/models"
 	"time"
 
@@ -50,6 +51,10 @@ func (r *EventRepository) Delete(id uint) error {
 }
 
 func (r *EventRepository) AddSubscriber(eventID, userID uint) error {
+	sub := r.db.Where("event_id = ? AND user_id = ?", eventID, userID).First(&models.EventSubscriber{})
+	if sub.Error == nil {
+		return errors.New("user already subscribed to event")
+	}
 	subscriber := models.EventSubscriber{
 		EventID:      eventID,
 		UserID:       userID,
@@ -145,3 +150,11 @@ func (r *EventRepository) GetEventSubscribers(eventID uint) ([]models.EventSubsc
     return subscribers, err
 }
 
+func (r *EventRepository) GetEventSubscriber(eventID, userID uint) *models.EventSubscriber {
+	var subscriber models.EventSubscriber
+	err := r.db.Where("event_id = ? AND user_id = ?", eventID, userID).First(&subscriber).Error
+	if err != nil {
+		return nil
+	}
+	return &subscriber
+}
