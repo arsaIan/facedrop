@@ -83,7 +83,7 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	eventRepo := repository.NewEventRepository(db)
-	qrService := service.NewQRService(cfg.ServerConfig.BaseURL)
+	qrService := service.NewQRService(cfg.QRConfig.BaseURL)
 
 	//initialize sender
 	sender := sender.NewEmailSender(cfg)

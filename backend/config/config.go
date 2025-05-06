@@ -16,6 +16,7 @@ type Config struct {
 	StorageConfig  StorageConfig
 	DeepFaceConfig DeepFaceConfig
 	EmailConfig    EmailConfig 
+	QRConfig       QRConfig
 }
 
 type ServerConfig struct {
@@ -38,7 +39,9 @@ type JWTConfig struct {
 	Secret    string
 	Expiry    time.Duration
 }
-
+type QRConfig struct {
+	BaseURL string
+}
 type StorageConfig struct {
 	Endpoint        string
 	Region          string
@@ -107,6 +110,9 @@ func LoadConfig() (*Config, error) {
 			Username:     os.Getenv("EMAIL_USERNAME"),
 			Password:     os.Getenv("EMAIL_PASSWORD"),
 			From:         os.Getenv("EMAIL_FROM"),
+		},
+		QRConfig: QRConfig{
+			BaseURL: os.Getenv("QR_BASE_URL"),
 		},
 	}, nil
 }
