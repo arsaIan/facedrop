@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 
 # Copy any additional required files
-COPY --from=builder /app/.env .
+COPY --from=builder /app/.env.dev .
 
 # Expose the application port
 EXPOSE 8080
