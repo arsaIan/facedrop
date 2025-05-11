@@ -45,3 +45,6 @@ temp/
 
 # Redis dump
 dump.rdb 
+
+
+.env.dev
