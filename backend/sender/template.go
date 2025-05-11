@@ -16,7 +16,7 @@ const emailTemplate = `
             padding: 20px;
         }
         .header {
-            background-color: #4F46E5;
+            background-color: #A855F7;
             color: white;
             padding: 20px;
             text-align: center;
@@ -25,7 +25,7 @@ const emailTemplate = `
         .content {
             background-color: #ffffff;
             padding: 20px;
-            border: 1px solid #e5e7eb;
+            border: 1px solid #F3E8FF;
             border-radius: 0 0 8px 8px;
         }
         .footer {
@@ -36,12 +36,15 @@ const emailTemplate = `
         }
         .button {
             display: inline-block;
-            background-color: #4F46E5;
+            background-color: #A855F7;
             color: white !important;
             padding: 10px 20px;
             text-decoration: none;
             border-radius: 4px;
             margin: 20px 0;
+        }
+        .button:hover {
+            background-color: #7E22CE;
         }
         .logo {
             width: 60px;
@@ -64,7 +67,7 @@ const emailTemplate = `
         <p>This link will expire in 7 days.</p>
     </div>
     <div class="footer">
-        <img src="https://files.arsln.dev/fd-logo.png" alt="FaceDrop Logo" class="logo">
+        <img src="https://files.arsln.dev/fd-logo-purple.png" alt="FaceDrop Logo" class="logo">
         <p>© 2024 FaceDrop. All rights reserved.</p>
         <p>This is an automated message, please do not reply to this email.</p>
     </div>

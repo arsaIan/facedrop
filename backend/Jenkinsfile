@@ -52,8 +52,6 @@ pipeline {
                     // Add deployment steps here
                     // This could be kubectl apply, docker-compose up, etc.
                     sh '''
-                        # Example deployment command
-                        # kubectl set image deployment/facedrop-backend facedrop-backend=${DOCKER_REGISTRY}/${DOCKER_IMAGE}:${DOCKER_TAG}
                     '''
                 }
             }
