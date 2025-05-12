@@ -4,9 +4,11 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"facedrop/config"
 	"fmt"
 	"io"
+	"log"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,6 +17,8 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/transport/http"
 )
 
 type S3Client struct {
@@ -46,8 +50,10 @@ func NewS3Client(cfg *config.Config) (*S3Client, error) {
 	}
 
 	// Create S3 client
-	client := s3.NewFromConfig(awsCfg)
-
+	//client := s3.NewFromConfig(awsCfg)
+	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	})
 	return &S3Client{
 		client:     client,
 		buckets: []string{cfg.StorageConfig.EventBucket, cfg.StorageConfig.UserBucket},
@@ -66,6 +72,21 @@ func (s *S3Client) UploadFile(ctx context.Context, fileKey string, data []byte, 
 		Body:   bytes.NewReader(data),
 	})
 	if err != nil {
+		 var respErr *smithy.OperationError
+    	if errors.As(err, &respErr) {
+			// Extract detailed error message
+			log.Printf("OperrationError: %v", respErr)
+			
+			// Check if there is an underlying ResponseError
+			if respErr.Err != nil {
+				var resErr *http.ResponseError
+				if errors.As(respErr.Err, &resErr) {
+					// Extract the detailed ResponseError message
+					log.Printf("ResponseError: %v", resErr)
+					log.Printf("error: %s", resErr.Err)
+				}
+			}
+		}
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
