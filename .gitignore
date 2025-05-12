@@ -4,5 +4,6 @@
 .venv
 
 backend/.env
-.vscode
 
+.vscode/
+.vscode/launch.json
