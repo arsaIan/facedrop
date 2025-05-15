@@ -1,7 +1,8 @@
 package repository
 
 import (
-	"mofoto/models"
+	"errors"
+	"facedrop/models"
 	"time"
 
 	"gorm.io/gorm"
@@ -32,9 +33,9 @@ func (r *EventRepository) FindByID(id uint) (*models.Event, error) {
 	return &event, nil
 }
 
-func (r *EventRepository) FindAll() ([]models.Event, error) {
+func (r *EventRepository) FindAll(userID uint) ([]models.Event, error) {
 	var events []models.Event
-	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").Find(&events).Error
+	err := r.db.Preload("Creator").Preload("Subscribers").Preload("Photos").Where("created_by = ?", userID).Find(&events).Error
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +51,10 @@ func (r *EventRepository) Delete(id uint) error {
 }
 
 func (r *EventRepository) AddSubscriber(eventID, userID uint) error {
+	sub := r.db.Where("event_id = ? AND user_id = ?", eventID, userID).First(&models.EventSubscriber{})
+	if sub.Error == nil {
+		return errors.New("user already subscribed to event")
+	}
 	subscriber := models.EventSubscriber{
 		EventID:      eventID,
 		UserID:       userID,
@@ -102,14 +107,54 @@ func (r *EventRepository) GetEventStatus(eventID uint) (models.EventStatus, erro
 }
 
 func (r *EventRepository) GetSubscribers(eventID uint) ([]models.User, error) {
-	var subscribers []models.User
-	err := r.db.Model(&models.Event{}).Where("id = ?", eventID).Preload("Subscribers").Find(&subscribers).Error
-	return subscribers, err
+	var event models.Event
+	err := r.db.Preload("Subscribers").First(&event, eventID).Error
+	if err != nil {
+		return nil, err
+	}
+	return event.Subscribers, nil
 }
 
 func (r *EventRepository) GetUserFaces(subs []models.User) ([]models.UserFace, error) {
+	var userIDs []uint
+	for _, user := range subs {
+		userIDs = append(userIDs, user.ID)
+	}
+
 	var userFaces []models.UserFace
-	err := r.db.Model(&models.UserFace{}).Where("user_id IN (?)", subs).Find(&userFaces).Error
+	err := r.db.Where("user_id IN ?", userIDs).Find(&userFaces).Error
 	return userFaces, err
 }
 
+
+func (r *EventRepository) AddEventMatches(eventID uint, matches []models.EventMatch) error {
+	return r.db.Model(&models.EventMatch{}).Create(matches).Error
+}
+
+func (r *EventRepository) GetEventMatches(eventID uint) ([]models.EventMatch, error) {
+	var eventMatches []models.EventMatch
+	err := r.db.Where("event_id = ?", eventID).Find(&eventMatches).Error
+	return eventMatches, err
+}
+
+func (r *EventRepository) UpdateSubscriberStatus(subscriberID uint, status models.EventSubscriberStatus) error {
+	return r.db.Model(&models.EventSubscriber{}).Where("user_id = ?", subscriberID).Update("status", status).Error
+}
+
+func (r *EventRepository) GetEventSubscribers(eventID uint) ([]models.EventSubscriber, error) {
+    var subscribers []models.EventSubscriber
+
+    // Using Preload to load the User associated with each EventSubscriber
+    err := r.db.Where("event_id = ?", eventID).Preload("User").Find(&subscribers).Error
+
+    return subscribers, err
+}
+
+func (r *EventRepository) GetEventSubscriber(eventID, userID uint) *models.EventSubscriber {
+	var subscriber models.EventSubscriber
+	err := r.db.Where("event_id = ? AND user_id = ?", eventID, userID).First(&subscriber).Error
+	if err != nil {
+		return nil
+	}
+	return &subscriber
+}

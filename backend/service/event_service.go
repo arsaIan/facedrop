@@ -1,38 +1,48 @@
 package service
 
 import (
+	"facedrop/deepface"
+	"facedrop/interfaces"
+	"facedrop/logger"
+	"facedrop/models"
+	"facedrop/repository"
 	"fmt"
-	"mofoto/deepface"
-	"mofoto/logger"
-	"mofoto/models"
-	"mofoto/repository"
 )
 
 type EventService struct {
 	eventRepo *repository.EventRepository
 	qrService *QRService
 	deepfaceClient *deepface.DeepFaceClient
+	processor interfaces.Processor
 }
 
-func NewEventService(eventRepo *repository.EventRepository, qrService *QRService, deepfaceClient *deepface.DeepFaceClient) *EventService {
-	return &EventService{eventRepo: eventRepo, qrService: qrService, deepfaceClient: deepfaceClient}
+func NewEventService(eventRepo *repository.EventRepository, qrService *QRService, deepfaceClient *deepface.DeepFaceClient, processor interfaces.Processor) *EventService {
+	return &EventService{eventRepo: eventRepo, qrService: qrService, deepfaceClient: deepfaceClient, processor: processor}
 }
 
 func (s *EventService) CreateEvent(event *models.Event) error {
+	err := s.eventRepo.Create(event)
+	if err != nil {
+		return err
+	}
 	qrCode, err := s.qrService.GenerateEventSubscriptionQR(event.ID)
 	if err != nil {
 		return err
 	}
 	event.QRCode = qrCode
-	return s.eventRepo.Create(event)
+	err = s.eventRepo.Update(event)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *EventService) GetEventByID(id uint) (*models.Event, error) {
 	return s.eventRepo.FindByID(id)
 }
 
-func (s *EventService) GetAllEvents() ([]models.Event, error) {
-	return s.eventRepo.FindAll()
+func (s *EventService) GetAllEvents(userID uint) ([]models.Event, error) {
+	return s.eventRepo.FindAll(userID)
 }
 
 func (s *EventService) UpdateEvent(event *models.Event) error {
@@ -64,58 +74,27 @@ func (s *EventService) GetSubscriberPhotos(eventID, userID uint) ([]models.Photo
 }
 
 //todo push event to ready queue
-func (s *EventService) PushEventToReadyQueue(eventID uint) error {
+func (s *EventService) PushEventToReadyQueue(eventID uint) (interface{}, error) {
 	//for now lets put the queue logic here 
 
-	go s.ProcessReadyEvent(eventID)
-	
-	return s.eventRepo.UpdateEventStatus(eventID, models.EventStatusReady)
+	result, err := s.processor.Process(eventID)
+	if err != nil {
+		logger.Error(err)
+		return nil, err
+	}
+	logger.Info(fmt.Sprintf("event %d pushed to ready queue %v", eventID, result))
+	//s.eventRepo.UpdateEventStatus(eventID, models.EventStatusReady)
+	return result, nil
 }
 
 func (s *EventService) GetEventStatus(eventID uint) (models.EventStatus, error) {
 	return s.eventRepo.GetEventStatus(eventID)
 }
 
-func (s *EventService) ProcessReadyEvent(eventID uint) (map[string][]string, error) {
-	//todo process the event
-	//get the subscribers
-	subs, err := s.eventRepo.GetSubscribers(eventID)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
+func (s *EventService) GetEventSubscribers(eventID uint) ([]models.EventSubscriber, error) {
+	return s.eventRepo.GetEventSubscribers(eventID)
+}
 
-	//get user faces
-	faces, err := s.eventRepo.GetUserFaces(subs)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-
-	//get the photos
-	photos, err := s.eventRepo.GetEventPhotos(eventID)
-	if err != nil {
-		logger.Error(err)
-		return nil, err
-	}
-	matches := make(map[string][]string)
-	for _, photo := range photos {
-		for _, face := range faces {
-			//compare the photo with the subscriber's face
-			match, err := s.deepfaceClient.CompareFaces(photo.URL, face.FaceURL)
-			if err != nil {
-				logger.Error(err)
-				return nil, err
-			}
-			if match {
-				logger.Info("match found")
-				if _, exists := matches[face.User.Email]; !exists {
-					matches[face.User.Email] = make([]string, 0)
-				}
-				matches[face.User.Email] = append(matches[face.User.Email], photo.URL)
-			}
-		}	
-	}
-	logger.Info(fmt.Sprintf("Processing event %d finished", eventID))
-	return matches, nil
+func (s *EventService) GetEventSubscriber(eventID, userID uint) *models.EventSubscriber {
+	return s.eventRepo.GetEventSubscriber(eventID, userID)
 }

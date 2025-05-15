@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"mofoto/logger"
-	"mofoto/models"
+	"facedrop/logger"
+	"facedrop/models"
 
 	"gorm.io/gorm"
 )

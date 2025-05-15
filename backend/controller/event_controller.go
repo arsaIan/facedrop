@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"facedrop/config"
+	"facedrop/logger"
+	"facedrop/models"
+	"facedrop/service"
+	"facedrop/utils"
 	"fmt"
 	"io"
-	"mofoto/config"
-	"mofoto/logger"
-	"mofoto/models"
-	"mofoto/service"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -59,7 +61,8 @@ func (c *EventController) GetEvent(ctx *gin.Context) {
 }
 
 func (c *EventController) GetAllEvents(ctx *gin.Context) {
-	events, err := c.eventService.GetAllEvents()
+	userID := ctx.GetUint("user_id")
+	events, err := c.eventService.GetAllEvents(userID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch events"})
 		return
@@ -67,6 +70,8 @@ func (c *EventController) GetAllEvents(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, events)
 }
+
+
 
 func (c *EventController) UpdateEvent(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -117,13 +122,17 @@ func (c *EventController) SubscribeToEvent(ctx *gin.Context) {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
-
+	existingSub := c.eventService.GetEventSubscriber(uint(eventID), userID)
+	if existingSub != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "User already subscribed to event"})
+		return
+	}
 	if err := c.eventService.SubscribeToEvent(uint(eventID), userID); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to subscribe to event"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to subscribe to event, " + err.Error()})
 		return
 	}
 
-	ctx.Status(http.StatusOK)
+	ctx.JSON(http.StatusOK, gin.H{"message": "Subscribed to event"})
 }
 
 func (c *EventController) UnsubscribeFromEvent(ctx *gin.Context) {
@@ -146,8 +155,7 @@ func (c *EventController) UnsubscribeFromEvent(ctx *gin.Context) {
 
 	ctx.Status(http.StatusOK)
 }
-
-func (c *EventController) AddPhoto(ctx *gin.Context) {
+func (c *EventController) AddMultiplePhotos(ctx *gin.Context) {
 	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
@@ -164,34 +172,54 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 		return
 	}
 	
-
-	file, err := ctx.FormFile("photo")
+	form, err := ctx.MultipartForm()
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Photo file is required"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
 		return
 	}
 
+	files := form.File["photo"]
+	if len(files) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "No photos provided"})
+		return
+	}
+
+	uploadedPhotos := []string{}
+	for _, file := range files {
+		err, photo := c.AddPhoto(ctx, file, uint(eventID), userID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add photo"})
+			return
+		}
+		uploadedPhotos = append(uploadedPhotos, photo.URL)
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Photos uploaded successfully",
+		"urls":    uploadedPhotos,
+	})
+}	
+func (c *EventController) AddPhoto(ctx *gin.Context, file *multipart.FileHeader, eventID uint, userID uint) (error, models.Photo) {
 	// Open the file
 	src, err := file.Open()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open file"})
-		return
+		return err, models.Photo{}
 	}
 	defer src.Close()
 
 	// Read the file content
 	fileContent, err := io.ReadAll(src)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file"})
-		return
+		return err, models.Photo{}		
 	}
 
 	// Upload file to S3
+	// Remove spaces from filename
+	file.Filename = utils.CleanFilename(file.Filename)
 	fileKey := fmt.Sprintf("events/%d/%s", eventID, file.Filename)
 	photoURL, err := c.storageClient.UploadFile(ctx, fileKey, fileContent, c.cfg.StorageConfig.EventBucket)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload photo"})
-		return
+		return err, models.Photo{}
 	}
 	logger.Info("Photo uploaded to S3", logger.String("photoURL", photoURL))
 
@@ -205,27 +233,77 @@ func (c *EventController) AddPhoto(ctx *gin.Context) {
 	}
 
 	if err := c.eventService.AddPhotoToEvent(photo); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add photo"})
-		return
+		return err, models.Photo{}
 	}
 
-	ctx.JSON(http.StatusCreated, photo)
+	return nil, *photo
 }
 
+
+
 func (c *EventController) GetEventPhotos(ctx *gin.Context) {
+	// Get pagination parameters from query string
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("limit", "1"))
+
+	// Validate pagination parameters
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// Calculate offset
+	offset := (page - 1) * pageSize
+	// Get event ID from URL parameter
 	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
 
+	// Get total count of photos
 	photos, err := c.eventService.GetEventPhotos(uint(eventID))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch photos"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, photos)
+	totalPhotos := len(photos)
+	totalPages := (totalPhotos + pageSize - 1) / pageSize
+
+	// Apply pagination
+	start := offset
+	end := offset + pageSize
+	if start >= totalPhotos {
+		ctx.JSON(http.StatusOK, gin.H{
+			"photos":      []models.Photo{},
+			"pagination": gin.H{
+				"current_page": page,
+				"total_pages": totalPages,
+				"page_size":   pageSize,
+				"total_items": totalPhotos,
+			},
+		})
+		return
+	}
+	if end > totalPhotos {
+		end = totalPhotos
+	}
+
+	paginatedPhotos := photos[start:end]
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"photos":      paginatedPhotos,
+		"pagination": gin.H{
+			"current_page": page,
+			"total_pages": totalPages,
+			"page_size":   pageSize,
+			"total_items": totalPhotos,
+		},
+	})
+	return
 }
 
 func (c *EventController) GetSubscriberPhotos(ctx *gin.Context) {
@@ -257,9 +335,27 @@ func (c *EventController) PushEventToReadyQueue(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.eventService.PushEventToReadyQueue(uint(eventID)); err != nil {
+	_, err = c.eventService.PushEventToReadyQueue(uint(eventID))
+	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to push event to ready queue"})
+		return 
+	}
+	//utils.AddZipDownloadHeader(ctx, fmt.Sprintf("attachment; filename=event_%d_photos.zip", eventID), zipData.([]byte))
+	// Send the file
+	ctx.JSON(http.StatusOK, gin.H{"message": "Files sent to subscribers"})
+}
+
+func (c *EventController) GetEventSubscribers(ctx *gin.Context) {
+	eventID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid event ID"})
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "Event pushed to ready queue"})
+
+	subscribers, err := c.eventService.GetEventSubscribers(uint(eventID))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch subscribers"})
+		return
+	}
+	ctx.JSON(http.StatusOK, subscribers)
 }

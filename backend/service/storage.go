@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"mofoto/storage"
+	"facedrop/storage"
 )
 
 type StorageClient struct {

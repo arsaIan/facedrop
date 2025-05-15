@@ -1,16 +1,18 @@
 package main
 
 import (
+	"facedrop/config"
+	"facedrop/controller"
+	"facedrop/deepface"
+	"facedrop/events"
+	"facedrop/logger"
+	"facedrop/middleware"
+	"facedrop/models"
+	"facedrop/repository"
+	"facedrop/sender"
+	"facedrop/service"
+	"facedrop/storage"
 	"fmt"
-	"mofoto/config"
-	"mofoto/controller"
-	"mofoto/deepface"
-	"mofoto/logger"
-	"mofoto/middleware"
-	"mofoto/models"
-	"mofoto/repository"
-	"mofoto/service"
-	"mofoto/storage"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,7 +21,14 @@ import (
 )
 func Migrate(db *gorm.DB) {
 	// Auto-migrate the schema
-	if err := db.AutoMigrate(&models.User{}, &models.Event{}, &models.Photo{}, &models.UserFace{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.User{}, 
+		&models.Event{}, 
+		&models.Photo{}, 
+		&models.UserFace{}, 
+		&models.EventSubscriber{},
+		&models.EventMatch{},
+		); err != nil {
 		logger.Fatal("Failed to migrate database", logger.Error(err))
 	}
 	logger.Info("Database migration completed")
@@ -74,10 +83,15 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(db)
 	eventRepo := repository.NewEventRepository(db)
-	qrService := service.NewQRService(cfg.ServerConfig.BaseURL)
+	qrService := service.NewQRService(cfg.QRConfig.BaseURL)
+
+	//initialize sender
+	sender := sender.NewEmailSender(cfg)
+	//initialize processor
+	processor := events.NewEventProcessor(eventRepo, s3Client, cfg, sender)
 	// Initialize services
 	userService := service.NewUserService(userRepo)
-	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient)
+	eventService := service.NewEventService(eventRepo, qrService, deepfaceClient, processor)
 
 	// Initialize controllers
 	userController := controller.NewUserController(userService, cfg, storageClient)
@@ -126,9 +140,10 @@ func setupRoutes(r *gin.Engine, userController *controller.UserController,
 		eventRoutes.DELETE("/:id", eventController.DeleteEvent)
 		eventRoutes.POST("/:id/subscribe", eventController.SubscribeToEvent)
 		eventRoutes.DELETE("/:id/subscribe", eventController.UnsubscribeFromEvent)
-		eventRoutes.POST("/:id/photos", eventController.AddPhoto)
+		eventRoutes.POST("/:id/photos/multiple", eventController.AddMultiplePhotos)
 		eventRoutes.GET("/:id/photos", eventController.GetEventPhotos)
 		eventRoutes.GET("/:id/my-photos", eventController.GetSubscriberPhotos)
 		eventRoutes.POST("/:id/ready", eventController.PushEventToReadyQueue)
+		eventRoutes.GET("/:id/subscribers", eventController.GetEventSubscribers)
 	}
 } 

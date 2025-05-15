@@ -24,7 +24,7 @@ func NewQRService(baseURL string) *QRService {
 // Returns the QR code as a base64 encoded PNG image
 func (s *QRService) GenerateEventSubscriptionQR(eventID uint) (string, error) {
 	// Create the subscription URL
-	subscriptionURL := fmt.Sprintf("%s/events/%d/subscribe", s.baseURL, eventID)
+	subscriptionURL := fmt.Sprintf("%s/events/subscribe?event=%d", s.baseURL, eventID)
 
 	// Generate QR code
 	qr, err := qrcode.New(subscriptionURL, qrcode.Medium)
